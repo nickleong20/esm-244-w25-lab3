@@ -23,6 +23,27 @@ Create some exploratory tables or charts to help you better understand possible 
 
 ## Use a Tidymodel framework to conduct your analysis.
 
+```{r}
+
+surv_df <- wine_quality %>%
+  mutate(good = quality > 6)
+
+surv_df %>%
+  group_by(survived) %>%
+  summarize(n = n()) %>%
+  ungroup() %>%
+  mutate(prop = n / sum(n))
+
+wine_df <- wine_quality %>%
+  
+  
+surv_split <- initial_split(surv_df, prop = 0.80,strata = survived)
+  ### stratified on `survived`; training and test splits will both have ~60/40% survived = 0/1
+surv_train_df <- training(surv_split)
+surv_test_df <- testing(surv_split)
+```
+
+
 ## Visualize
 
 Present your final results and upgrade this document's YAML to a professional level quality.

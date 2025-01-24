@@ -13,11 +13,32 @@ library(here)
 t_df<-read_csv(here("data", "titanic_survival.csv"))
 ```
 
-
 ## ML Framework
 
 Write a description of how you go about applying machine learning problems. If you drew a diagram, share with a neighbor and discuss.
 
+What is your research queston
+
+1. Gather data
+2. Develop a hypothesis
+
+Methodology map out the plan get pseudocode 
+
+Clean data/what variables 
+
+Look at the data / exploratory data analysis
+
+3. Choose metrics 
+4. Data split into testing and training 
+5. Building Models 
+    a. Create our model options, what variables 
+    b. data preprocessing 
+    c. train model 
+    d. tune model 
+    e. evaluate performance 
+    f. model selection 
+6. Finalize the model (train on whole dataset)
+7. Interpret resuls/visualize/communicate 
 
 
 
@@ -41,6 +62,21 @@ In real life, we would have to go out and collect the data. Today, we will use t
 
 Take 15 minutes to explore the data. Are there any immediate changes to the data that we need to change? What relationships can you see through graphs? What variables could be of interest to predict survival of passengers on the Titanic?
 
+```{r}
+surv_df <- t_df %>%
+  mutate(survived = factor(survived),   ### categorical outcome variables need to be factors
+         pclass   = factor(pclass)) %>% ### turn some predictors to factor
+  select(-cabin, -ticket)
+
+```
+
+```{r}
+ggplot(surv_df, aes(x = pclass, fill = survived)) +
+  geom_bar()
+
+ggplot(surv_df, aes(x = age, fill = survived)) +
+  geom_histogram()
+```
 
 
 ## Data Split
@@ -148,7 +184,18 @@ Now fill in the following code chunk to fit the lasso model. Create a table (or 
 
 
 ```{r}
+lasso_wf <- workflow() %>%
+  add_recipe(lasso_rec) %>%
+  add_model(lasso_md) 
 
+lasso_fit<-lasso_wf %>%
+  fit(surv_train_df)
+
+lasso_test<-surv_test_df |>
+  mutate(predict(lasso_fit, new_data = surv_test_df)) |> 
+  mutate(predict(lasso_fit,new_data = surv_test_df, type='prob'))
+
+table(lasso_test$survived, lasso_test$.pred_class) 
 
 ```
 
@@ -162,13 +209,12 @@ log_test |>
 
 lasso_test |>
   accuracy(truth = survived, estimate = .pred_class)
-```
-
-
+``` 
 Calculate the `ROC AUC` for each model. Use the `roc_auc` function from yardstick.
 
 ```{r}
-
+roc_auc(log_test, truth = survived, .pred_0)
+roc_auc(lasso_test, truth = survived, .pred_0)
 ```
 
 
@@ -188,13 +234,13 @@ log_fit_folds<- log_fit |>
 
 collect_metrics(log_fit_folds)
 
-lasso_res<-lasso_wf %>%
+lasso_res<-lasso_fit %>%
   fit_resamples(folds)
 
 collect_metrics(lasso_res)
 ```
 
-Which model do we choose?
+Which model do we choose? 
 
 Let's look at the actual models to get a better understanding.
 
@@ -211,11 +257,16 @@ Lasso set many of the parameters to zero. How do you interpret this model? Why w
 
 ### Finalize Model
 
+
 We will finalize the model by fitting the model to the entire dataset. 
 
 ```{r}
 final_log<-log_wf |>
   last_fit(surv_split)
+
+useable_log <- final_log %>% 
+extract_fit_parsnip()
+
 ```
 
 
@@ -229,7 +280,9 @@ final_log |>
   extract_fit_parsnip() |>
   tidy() |> 
   mutate(odds=exp(estimate),
-         prob=odds/(1+estimate))
+         prob=odds/(1+odds))
+
+
 ```
 
 Please give this a go on your own with the post-lab exercise. I will be walking around to assist.
